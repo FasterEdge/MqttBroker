@@ -5,14 +5,25 @@
 </div>
 
 ### 一、项目简介
-- 基于 **FasterEdge MqttBrokerCore** 构建的 MQTT 代理服务，通过 HTTP 接口与内置 **WebUI** 控制底层 Broker 的生命周期。
-- 提供一个管理端口 `11883`，同时承担：
+- 基于 **[FasterEdge MqttBrokerCore](https://github.com/FasterEdge/MqttBrokerCore)** 构建的 MQTT 代理服务，通过 HTTP 接口与内置 **WebUI** 轻松控制底层 Broker 的生命周期。
+- 统一使用一个管理端口 `11883`，同时提供：
   - **REST API**：`/startup`、`/heartbeat`、`/shutdown`。
-  - **Web 面板**：在浏览器中启动 / 停止 Broker，并实时查看日志与运行状态。
+  - **Web 管理面板**：在浏览器中启动 / 停止 Broker，并实时查看运行状态与日志。
 - MQTT 通信端口默认 `1883`，可通过 `/startup?port=...` 动态指定。
-- 底层能力全部来自 [MqttBrokerCore](https://github.com/FasterEdge/MqttBrokerCore)（含 QoS 0/1/2、遗嘱、保留消息、主题通配符等）。
+- 底层能力全部来自 `MqttBrokerCore`：支持 **MQTT 3.1.1 / 5.0**、**QoS 0/1/2**、遗嘱消息、保留消息、主题通配符（`+`、`#`）。
+- 全部静态资源通过 `go:embed` 嵌入二进制，单文件即可部署，无需额外静态目录。
 
-### 二、快速启动
+### 二、主要特性
+| 特性 | 说明 |
+|------|------|
+| HTTP 控制 | 通过 REST 接口启停 Broker，方便与脚本、监控、告警系统集成 |
+| 内置 WebUI | 免安装，浏览器网页即可启停服务、查看日志，适合快速试用 |
+| 动态端口 | 启动时用 `port` 参数指定监听端口，灵活适应不同环境 |
+| 内存持久化 | 默认 `MemoryPersistence`，开箱即用、无外部依赖 |
+| 单文件部署 | `go build` 后只需一个可执行文件即可运行 |
+| 容器化 | 提供 `Dockerfile`，支持多阶段构建与非 root 运行 |
+
+### 三、快速启动
 
 ```bash
 go mod tidy
@@ -20,13 +31,20 @@ go build ./...
 
 # 启动管理服务（默认监听 11883）
 ./com.tyza66.SimpleMqttBrokerApi
-# 或
+# 或直接运行源码
 go run main.go
 ```
 
 启动后浏览器访问 `http://127.0.0.1:11883/` 即可打开 Web 管理面板。
 
-### 三、REST API
+**使用 Docker 运行：**
+
+```bash
+docker build -t fasteredge/mqtt-broker .
+docker run -p 11883:11883 -p 1883:1883 fasteredge/mqtt-broker
+```
+
+### 四、REST API
 
 | 接口 | 方法 | 说明 |
 |------|------|------|
@@ -48,7 +66,7 @@ go run main.go
 }
 ```
 
-### 四、用法示例
+### 五、用法示例
 
 ```bash
 # 启动 MQTT Broker（监听 1883）
@@ -61,15 +79,28 @@ curl "http://127.0.0.1:11883/heartbeat"
 curl "http://127.0.0.1:11883/shutdown"
 ```
 
-### 五、内部实现
-- **内核**：`hrotti.NewHrotti(100, &hrotti.MemoryPersistence{})` 创建一个使用内存持久化的 Broker 实例。
+### 六、目录结构
+
+```
+MqttBroker/
+├─ main.go          # 入口：HTTP 接口 + 嵌入式 WebUI
+├─ ui/
+│  └─ index.html    # Web 管理面板（go:embed 内嵌）
+├─ go.mod           # 依赖 FasterEdge MqttBrokerCore 模块
+├─ Dockerfile       # 多阶段容器构建
+├─ Logo.png
+└─ README.md
+```
+
+### 七、内部实现
+- **内核**：`hrotti.NewHrotti(100, &hrotti.MemoryPersistence{})` 创建基于内存持久化的 Broker 实例。
 - **日志**：自定义 `LogInterceptor` 接管 `hrotti.INFO/DEBUG/ERROR` 输出，缓存最近 200 条日志供 `/heartbeat` 查询，并同步打印到标准输出。
-- **WebUI**：通过 `go:embed` 将 `ui/` 静态资源嵌入到二进制，根路径 `/` 由 `http.FileServer` 服务，接口与面板共用一个端口。
+- **WebUI**：通过 `go:embed` 把 `ui/` 静态资源嵌入二进制，根路径 `/` 由 `http.FileServer` 服务，与管理接口共用一个端口。
 - **线程安全**：`started` 标志与日志缓存由 `sync.Mutex` 保护，避免并发读写竞态。
 
-### 六、已内置的改进（来自 MqttBrokerCore）
+### 八、已内置的改进（来自 MqttBrokerCore）
 - 报文解析长度限制与内存上限，防止 OOM 和协议错误。
-- 断线/慢客户端下的非阻塞发送，避免服务死锁。
+- 断线 / 慢客户端下的非阻塞发送，避免服务死锁。
 - 空 `ClientIdentifier` 且 `CleanSession=0` 时按规范拒绝连接。
 - 消息 ID 耗尽时的安全处理。
 
