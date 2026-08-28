@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Simple MQTT Broker 控制面板</title>
+<style>
+    body {font-family: Arial, sans-serif; margin:0; padding:20px; background:#f5f5f5;}
+    .container {max-width:800px; margin:auto; background:white; padding:20px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.1);}
+    h1 {margin-top:0;}
+    .log {height:200px; overflow:auto; background:#eee; padding:10px; border:1px solid #ccc; font-family:monospace;}
+    .status {font-weight:bold;}
+    button {margin-right:10px; padding:6px 12px;}
+    input[type=text] {width:120px;}
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>Simple MQTT Broker 控制面板</h1>
+    <div>
+        <label>端口: <input type="text" id="portInput" placeholder="1883"></label>
+        <button id="startBtn">启动</button>
+        <button id="stopBtn">停止</button>
+        <button id="refreshBtn">刷新状态</button>
+    </div>
+    <p>状态: <span class="status" id="state">unknown</span></p>
+    <p>当前 Broker 端口: <span id="brokerPort">-</span></p>
+    <p>版本: <span id="version"></span></p>
+    <p>最后更新时间: <span id="timestamp"></span></p>
+    <h3>日志</h3>
+    <div class="log" id="logContainer"></div>
+</div>
+<script>
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const portInput = document.getElementById('portInput');
+    const stateEl = document.getElementById('state');
+    const brokerPortEl = document.getElementById('brokerPort');
+    const versionEl = document.getElementById('version');
+    const timestampEl = document.getElementById('timestamp');
+    const logContainer = document.getElementById('logContainer');
+
+    async function startBroker() {
+        const port = portInput.value.trim() || '';
+        const resp = await fetch('/startup?port=' + encodeURIComponent(port));
+        const txt = await resp.text();
+        alert('启动响应: ' + txt);
+        await refreshStatus();
+    }
+    async function stopBroker() {
+        const resp = await fetch('/shutdown');
+        const txt = await resp.text();
+        alert('停止响应: ' + txt);
+        await refreshStatus();
+    }
+    async function refreshStatus() {
+        try {
+            const resp = await fetch('/heartbeat');
+            const data = await resp.json();
+            stateEl.textContent = data.State;
+            brokerPortEl.textContent = data.BrokerPort;
+            versionEl.textContent = data.Version;
+            timestampEl.textContent = data.Timestamp;
+            logContainer.textContent = (data.Logs||[]).join('\n');
+        } catch (e) {
+            stateEl.textContent = 'error';
+            console.error(e);
+        }
+    }
+
+    startBtn.addEventListener('click', startBroker);
+    stopBtn.addEventListener('click', stopBroker);
+    refreshBtn.addEventListener('click', refreshStatus);
+
+    // auto-refresh every 5 seconds
+    setInterval(refreshStatus, 5000);
+    // initial load
+    refreshStatus();
+</script>
+</body>
+</html>

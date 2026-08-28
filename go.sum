@@ -1,0 +1,10 @@
+github.com/alsm/hrotti v0.0.0-20170418214259-087b33bb203d h1:pdJY+9Q2566oHun1kZIC8p3YtFPDmIyS+zG78Tq5Lfs=
+github.com/alsm/hrotti v0.0.0-20170418214259-087b33bb203d/go.mod h1:HW74LWmcibdeM7wHv0hhSUvvmlPjtFK4Q1A2UrC9QCM=
+github.com/bwmarrin/snowflake v0.3.0 h1:xm67bEhkKh6ij1790JB83OujPR5CzNe8QuQqAgISZN0=
+github.com/bwmarrin/snowflake v0.3.0/go.mod h1:NdZxfVWX+oR6y2K0o6qAYv6gIOP9rjG0/E9WsDpxqwE=
+github.com/davidfantasy/embedded-mqtt-broker v0.4.0 h1:chC5X9VLDAPLXYfob8ZBk/7mTNdBOdbW1CJylmd28DM=
+github.com/davidfantasy/embedded-mqtt-broker v0.4.0/go.mod h1:9An4eGFFDF4Rx5aXUBqAblwOkquZBQFC/2yF3gpI5g8=
+github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
+github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
+golang.org/x/net v0.40.0 h1:79Xs7wF06Gbdcg4kdCCIQArK11Z1hr5POQ6+fIYHNuY=
+golang.org/x/net v0.40.0/go.mod h1:y0hY0exeL2Pku80/zKK7tpntoX23cqL3Oa6njdgRtds=
