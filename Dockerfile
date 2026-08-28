@@ -5,11 +5,14 @@ WORKDIR /src
 
 # 先复制依赖清单以利用 Docker 层缓存
 COPY go.mod go.sum ./
+
+# go.mod 声明了 toolchain go1.25.13，这里显式下载以利用层缓存
 RUN go mod download
 
 # 复制源码并构建
 COPY main.go ./
 COPY ui/ ./ui/
+# 使用 go.mod 指定的工具链(go1.25.13，已修复 stdlib CVE)，禁用 cgo
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/simple-mqtt-broker .
 
 # ===== 运行阶段 =====

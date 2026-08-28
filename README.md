@@ -25,6 +25,8 @@
 
 ### 三、快速启动
 
+> **环境要求**：`go.mod` 声明 `toolchain go1.25.13`（已修复标准库 CVE）。Go 1.21+ 会自动下载并使用该工具链；如需手动指定可用 `GOTOOLCHAIN=go1.25.13 go build`。构建始终禁用 CGO（`CGO_ENABLED=0`）。
+
 ```bash
 go mod tidy
 go build ./...
