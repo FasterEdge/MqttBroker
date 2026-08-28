@@ -41,8 +41,19 @@ go run main.go
 
 ```bash
 docker build -t fasteredge/mqtt-broker .
-docker run -p 11883:11883 -p 1883:1883 fasteredge/mqtt-broker
+
+# 启动容器，映射管理端口(11883)与 MQTT 端口(1883)
+docker run -d -p 11883:11883 -p 1883:1883 fasteredge/mqtt-broker
 ```
+
+**Docker 环境变量：**
+
+| 环境变量 | 默认值 | 说明 |
+|----------|--------|------|
+| `MANAGE_PORT` | `11883` | 管理接口 / WebUI 端口 |
+| `MQTT_PORT` | `1883` | 未指定 `port` 参数时 MQTT 监听的默认端口 |
+
+> 在容器内访问 `http://127.0.0.1:11883/health` 可用于健康检查（Broker 运行中返回 200）。
 
 ### 四、REST API
 
@@ -83,11 +94,12 @@ curl "http://127.0.0.1:11883/shutdown"
 
 ```
 MqttBroker/
-├─ main.go          # 入口：HTTP 接口 + 嵌入式 WebUI
+├─ main.go          # 入口：HTTP 接口 + 嵌入式 WebUI（支持 MANAGE_PORT / MQTT_PORT）
 ├─ ui/
 │  └─ index.html    # Web 管理面板（go:embed 内嵌）
 ├─ go.mod           # 依赖 FasterEdge MqttBrokerCore 模块
-├─ Dockerfile       # 多阶段容器构建
+├─ Dockerfile       # 多阶段容器构建 + HEALTHCHECK
+├─ .dockerignore
 ├─ Logo.png
 └─ README.md
 ```

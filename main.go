@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -13,6 +14,17 @@ import (
 
 //go:embed ui/*
 var uiFS embed.FS
+
+// 管理端口（可通过环境变量 MANAGE_PORT 覆盖，默认 11883）
+var managePort = envOr("MANAGE_PORT", "11883")
+
+// envOr 读取环境变量，为空时返回默认值
+func envOr(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
+}
 
 // 回参结构体
 type HeartbeatInfo struct {
@@ -28,7 +40,7 @@ type HeartbeatInfo struct {
 var (
 	version        = "1.1.0"             // 当前的内核版本
 	started        = false               // 是否启动
-	brokerPort     = "1883"              // 默认端口
+	brokerPort     = "1883"              // 默认 MQTT 端口
 	logsCache      []string              // 日志缓存
 	shutdownSignal = make(chan struct{}) // 服务关闭信号
 	mu             sync.Mutex            // 用于保护日志缓存的互斥锁
@@ -57,11 +69,10 @@ func (li *LogInterceptor) Write(p []byte) (n int, err error) {
 
 // 启动 MQTT Broker
 func startMqttBroker(w http.ResponseWriter, r *http.Request) {
-	// 从查询参数中获取端口号
+	// 从查询参数中获取端口号，缺省使用 MQTT_PORT 环境变量或 1883
 	port := r.URL.Query().Get("port")
 	if port == "" {
-		fmt.Fprintln(w, "Missing port parameter, using default 1883")
-		port = "1883"
+		port = envOr("MQTT_PORT", "1883")
 	}
 
 	brokerPort = port
@@ -161,11 +172,24 @@ func main() {
 	http.HandleFunc("/heartbeat", heartbeat)
 	http.HandleFunc("/shutdown", stopBroker)
 
+	// 健康检查端点，供 Docker HEALTHCHECK 使用
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		if started {
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintln(w, "ok")
+			return
+		}
+		w.WriteHeader(http.StatusServiceUnavailable)
+		fmt.Fprintln(w, "stopped")
+	})
+
 	// 嵌入式 WebUI，作为根路径的兜底
 	http.Handle("/", http.FileServer(http.FS(uiFS)))
 
-	fmt.Println("Web UI available at http://127.0.0.1:11883/")
-	err := http.ListenAndServe(":11883", nil)
+	fmt.Println("Web UI available at http://127.0.0.1:" + managePort + "/")
+	err := http.ListenAndServe(":"+managePort, nil)
 	if err != nil {
 		fmt.Println("Error starting server:", err)
 	}
