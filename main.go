@@ -38,7 +38,7 @@ type HeartbeatInfo struct {
 
 // 全局状态
 var (
-	version        = "1.1.0"             // 当前的内核版本
+	version        = "1.0.20260829"             // 当前的内核版本
 	started        = false               // 是否启动
 	brokerPort     = "1883"              // 默认 MQTT 端口
 	logsCache      []string              // 日志缓存
