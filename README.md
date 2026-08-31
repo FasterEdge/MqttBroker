@@ -69,7 +69,7 @@ docker run -d -p 11883:11883 -p 1883:1883 fasteredge/mqtt-broker
 
 ```json
 {
-  "Version": "1.0.20260829",
+  "Version": "1.0.20260831",
   "State": "running",
   "Timestamp": "2026-08-28 13:20:00",
   "Logs": [
