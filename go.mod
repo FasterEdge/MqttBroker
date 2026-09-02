@@ -1,4 +1,4 @@
-module com.tyza66.SimpleMqttBrokerApi
+module github.com/FasterEdge/MqttBroker
 
 go 1.25.0
 
