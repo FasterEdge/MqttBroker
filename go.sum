@@ -1,5 +1,5 @@
-github.com/FasterEdge/MqttBrokerCore v0.0.0-20260828051703-7708bad5d5ea h1:8f9ib7cKduvJ4FVL1ghnlX8CW6EJsi1JuZMhDL/Tvo0=
-github.com/FasterEdge/MqttBrokerCore v0.0.0-20260828051703-7708bad5d5ea/go.mod h1:/EZd64yNwEhy5aaqCgCLGLAXuyueS6XvisfffvXO4H8=
+github.com/FasterEdge/MqttBrokerCore v1.0.20260902 h1:odObv0A2I9kaB2CImvGRICdB71Ly6USbOrOLQnNYKJs=
+github.com/FasterEdge/MqttBrokerCore v1.0.20260902/go.mod h1:tC3xE52PZS19tWuCyTrA1sh4xVmckUbq9NR/Ldf3cCg=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 golang.org/x/net v0.58.0 h1:ynWG7rqYi4ccpTEuPZ2QGWHktVEM9DMCj9yzDE0Q7To=
