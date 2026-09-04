@@ -1,6 +1,9 @@
 # ===== 构建阶段 =====
 FROM golang:1.25-alpine AS builder
 
+# go mod download 拉取未缓存模块时需要 git (如私有依赖源码拉取)
+RUN apk add --no-cache git
+
 WORKDIR /src
 
 # 使用国内 Go 模块代理 (proxy.golang.org 在此网络环境不可达)
