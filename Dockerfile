@@ -3,6 +3,10 @@ FROM golang:1.25-alpine AS builder
 
 WORKDIR /src
 
+# 使用国内 Go 模块代理 (proxy.golang.org 在此网络环境不可达)
+ENV GOPROXY=https://goproxy.cn,direct \
+    GOSUMDB=sum.golang.google.cn
+
 # 先复制依赖清单以利用 Docker 层缓存
 COPY go.mod go.sum ./
 
@@ -33,6 +37,10 @@ USER mqtt
 #   11883 — 管理接口 / WebUI（可用 MANAGE_PORT 覆盖）
 #   1883  — MQTT 通信端口（启动时可用 port 参数或 MQTT_PORT 覆盖）
 EXPOSE 11883 1883
+
+# 默认自动启动 MQTT 监听 (1883)，使 HEALTHCHECK 可立即通过；
+# 需要手动经 /startup 或 WebUI 启停时设为 MQTT_AUTOSTART=0
+ENV MQTT_AUTOSTART=1
 
 # 健康检查：管理端点 /health 在 Broker 运行时返回 200
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \

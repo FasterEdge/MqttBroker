@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -68,23 +69,17 @@ func (li *LogInterceptor) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// 启动 MQTT Broker
-func startMqttBroker(w http.ResponseWriter, r *http.Request) {
-	// 从查询参数中获取端口号，缺省使用 MQTT_PORT 环境变量或 1883
-	port := r.URL.Query().Get("port")
-	if port == "" {
-		port = envOr("MQTT_PORT", "1883")
-	}
-
-	brokerPort = port
-
-	// 避免重复启动
+// 启动 MQTT Broker (幂等: 已启动则直接返回)
+func launchBroker(port string) {
 	mu.Lock()
 	if started {
 		mu.Unlock()
-		fmt.Fprintln(w, "already running")
 		return
 	}
+	brokerPort = port
+	// 每次启动使用全新的关闭信号通道, 避免并发 /shutdown 重复 close
+	shutdownSignal = make(chan struct{})
+	sig := shutdownSignal
 	mu.Unlock()
 
 	go func() {
@@ -111,14 +106,31 @@ func startMqttBroker(w http.ResponseWriter, r *http.Request) {
 		mu.Unlock()
 		fmt.Println("MQTT Broker service started on port", port)
 
-		<-shutdownSignal
+		<-sig
 		h.Stop()
 		mu.Lock()
 		started = false
 		mu.Unlock()
 		fmt.Println("MQTT Broker service stopped.")
 	}()
+}
 
+// startMqttBroker HTTP 入口: /startup?port=...
+func startMqttBroker(w http.ResponseWriter, r *http.Request) {
+	// 从查询参数中获取端口号，缺省使用 MQTT_PORT 环境变量或 1883
+	port := r.URL.Query().Get("port")
+	if port == "" {
+		port = envOr("MQTT_PORT", "1883")
+	}
+
+	mu.Lock()
+	already := started
+	mu.Unlock()
+	launchBroker(port)
+	if already {
+		fmt.Fprintln(w, "already running")
+		return
+	}
 	fmt.Fprintln(w, "ok")
 }
 
@@ -158,11 +170,21 @@ func heartbeat(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, string(jsonData))
 }
 
-// 关闭 Broker
+// 关闭 Broker (幂等: 重复调用不 panic)
 func stopBroker(w http.ResponseWriter, r *http.Request) {
+	mu.Lock()
+	select {
+	case <-shutdownSignal:
+		// 已关闭过, 直接返回
+		mu.Unlock()
+		fmt.Fprintln(w, "ok")
+		return
+	default:
+	}
 	close(shutdownSignal) // 发送关闭信号
 	// 重置关闭信号通道
 	shutdownSignal = make(chan struct{})
+	mu.Unlock()
 	fmt.Fprintln(w, "ok")
 }
 
@@ -190,6 +212,15 @@ func main() {
 	http.Handle("/", http.FileServer(http.FS(uiFS)))
 
 	fmt.Println("Web UI available at http://127.0.0.1:" + managePort + "/")
+
+	// 容器/服务化场景: 可用 MQTT_AUTOSTART=1 启动时即监听 MQTT,
+	// 使 Docker HEALTHCHECK 可立即通过 (否则 1883 需手动 /startup)
+	if v := os.Getenv("MQTT_AUTOSTART"); v == "1" || strings.EqualFold(v, "true") {
+		port := envOr("MQTT_PORT", "1883")
+		fmt.Println("MQTT_AUTOSTART=1: 自动启动 MQTT Broker on port", port)
+		launchBroker(port)
+	}
+
 	err := http.ListenAndServe(":"+managePort, nil)
 	if err != nil {
 		fmt.Println("Error starting server:", err)
