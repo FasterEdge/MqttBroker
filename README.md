@@ -54,7 +54,10 @@ docker run -d -p 11883:11883 -p 1883:1883 fasteredge/mqtt-broker
 |----------|--------|------|
 | `MANAGE_PORT` | `11883` | 管理接口 / WebUI 端口 |
 | `MQTT_PORT` | `1883` | 未指定 `port` 参数时 MQTT 监听的默认端口 |
+| `MQTT_AUTOSTART` | `1` | 容器启动时自动监听 MQTT 端口（`1`/`true` 开启，`0` 关闭改为经 WebUI 或 `/startup` 手动启停） |
 
+> 容器默认自动启动 MQTT 监听，Docker HEALTHCHECK（`/health`）随即通过；
+> 若需完全手动控制 Broker 生命周期，运行容器时设置 `-e MQTT_AUTOSTART=0`。
 > 在容器内访问 `http://127.0.0.1:11883/health` 可用于健康检查（Broker 运行中返回 200）。
 
 ### 四、REST API
