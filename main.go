@@ -289,7 +289,17 @@ func main() {
 		launchBroker(port)
 	}
 
-	err := http.ListenAndServe(net.JoinHostPort(manageAddr, managePort), nil)
+	// 管理服务器带全套超时与头大小上限: 防御慢连接占资源(slowloris)与超大请求头
+	srv := &http.Server{
+		Addr:              net.JoinHostPort(manageAddr, managePort),
+		Handler:           nil,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+	}
+	err := srv.ListenAndServe()
 	if err != nil {
 		fmt.Println("Error starting server:", err)
 	}
