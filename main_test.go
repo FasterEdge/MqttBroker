@@ -8,13 +8,13 @@ import (
 
 func TestIsLoopbackAddr(t *testing.T) {
 	cases := map[string]bool{
-		"":          true,
-		"127.0.0.1": true,
-		"localhost": true,
-		"::1":       true,
-		"0.0.0.0":   false,
+		"":            true,
+		"127.0.0.1":   true,
+		"localhost":   true,
+		"::1":         true,
+		"0.0.0.0":     false,
 		"192.168.1.5": false,
-		"10.0.0.1":  false,
+		"10.0.0.1":    false,
 	}
 	for addr, want := range cases {
 		if got := isLoopbackAddr(addr); got != want {
