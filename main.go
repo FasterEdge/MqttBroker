@@ -2,11 +2,14 @@
 package main
 
 import (
+	"crypto/subtle"
 	"embed"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -19,6 +22,15 @@ var uiFS embed.FS
 
 // 管理端口（可通过环境变量 MANAGE_PORT 覆盖，默认 11883）
 var managePort = envOr("MANAGE_PORT", "11883")
+
+// 管理接口监听地址（默认仅本机 127.0.0.1）。
+// 对外暴露（MANAGE_ADDR 非回环地址）时必须配置 MANAGE_TOKEN，否则拒绝启动——
+// 防止局域网任意主机通过无鉴权的 /startup、/shutdown、/heartbeat 控制/干扰 Broker
+// (与 DontCrack4 家族的 "对外监听必须配密码" fail-closed 守卫一致)。
+var manageAddr = envOr("MANAGE_ADDR", "127.0.0.1")
+
+// 管理接口访问令牌（空 = 本机模式无需令牌；非空 = /startup /heartbeat /shutdown 均需携带）
+var manageToken = os.Getenv("MANAGE_TOKEN")
 
 // envOr 读取环境变量，为空时返回默认值
 func envOr(key, def string) string {
@@ -115,12 +127,57 @@ func launchBroker(port string) {
 	}()
 }
 
+// isLoopbackAddr 判断地址是否为本机回环（仅本机可访问）。
+func isLoopbackAddr(addr string) bool {
+	switch strings.ToLower(strings.TrimSpace(addr)) {
+	case "", "127.0.0.1", "localhost", "::1":
+		return true
+	}
+	return false
+}
+
+// checkManageToken 校验管理接口令牌。
+// 未配置令牌(本机模式)直接放行；凭据来源优先级: Authorization: Bearer > X-MqttBroker-Token > token 查询参数。
+// 使用常数时间比较, 避免时序侧信道。
+func checkManageToken(r *http.Request) bool {
+	if manageToken == "" {
+		return true
+	}
+	pw := ""
+	if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+		pw = strings.TrimPrefix(auth, "Bearer ")
+	} else if v := r.Header.Get("X-MqttBroker-Token"); v != "" {
+		pw = v
+	} else {
+		pw = r.URL.Query().Get("token")
+	}
+	return subtle.ConstantTimeCompare([]byte(pw), []byte(manageToken)) == 1
+}
+
+// manageAuth 包装管理接口: 令牌校验失败返回 401。
+func manageAuth(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !checkManageToken(r) {
+			w.Header().Set("WWW-Authenticate", "Bearer")
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		h(w, r)
+	}
+}
+
 // startMqttBroker HTTP 入口: /startup?port=...
 func startMqttBroker(w http.ResponseWriter, r *http.Request) {
 	// 从查询参数中获取端口号，缺省使用 MQTT_PORT 环境变量或 1883
 	port := r.URL.Query().Get("port")
 	if port == "" {
 		port = envOr("MQTT_PORT", "1883")
+	}
+	// 端口白名单: 仅接受 1-65535 纯数字, 拒绝任意字符串注入 (如 "25", "0", "abc",
+	// 避免把 broker 绑到意外端口或被拼接进 tcp:// 地址)
+	if n, err := strconv.Atoi(port); err != nil || n < 1 || n > 65535 {
+		http.Error(w, "invalid port: "+port, http.StatusBadRequest)
+		return
 	}
 
 	mu.Lock()
@@ -190,10 +247,21 @@ func stopBroker(w http.ResponseWriter, r *http.Request) {
 
 // 主函数
 func main() {
-	// 管理接口
-	http.HandleFunc("/startup", startMqttBroker)
-	http.HandleFunc("/heartbeat", heartbeat)
-	http.HandleFunc("/shutdown", stopBroker)
+	// 安全守卫: 对外暴露管理端口必须配置 MANAGE_TOKEN (fail-closed)。
+	// 管理接口含 /startup /shutdown /heartbeat, 无鉴权时可能被局域网任意主机
+	// 远程启停 Broker (DoS) 或读取日志; 默认仅绑定 127.0.0.1 拒绝外部访问。
+	if !isLoopbackAddr(manageAddr) && manageToken == "" {
+		fmt.Fprintln(os.Stderr, "安全拒绝启动: MANAGE_ADDR 指向外部网卡("+manageAddr+")时必须设置 MANAGE_TOKEN, 否则请保持默认 127.0.0.1")
+		os.Exit(1)
+	}
+	if manageToken != "" && isLoopbackAddr(manageAddr) {
+		fmt.Println("管理接口已启用令牌鉴权 (127.0.0.1:" + managePort + ")")
+	}
+
+	// 管理接口: /health 保持开放供 Docker HEALTHCHECK 使用, 其余控制端点均需令牌(配置时)
+	http.HandleFunc("/startup", manageAuth(startMqttBroker))
+	http.HandleFunc("/heartbeat", manageAuth(heartbeat))
+	http.HandleFunc("/shutdown", manageAuth(stopBroker))
 
 	// 健康检查端点，供 Docker HEALTHCHECK 使用
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -221,7 +289,7 @@ func main() {
 		launchBroker(port)
 	}
 
-	err := http.ListenAndServe(":"+managePort, nil)
+	err := http.ListenAndServe(net.JoinHostPort(manageAddr, managePort), nil)
 	if err != nil {
 		fmt.Println("Error starting server:", err)
 	}

@@ -46,6 +46,11 @@ docker build -t fasteredge/mqtt-broker .
 
 # 启动容器，映射管理端口(11883)与 MQTT 端口(1883)
 docker run -d -p 11883:11883 -p 1883:1883 fasteredge/mqtt-broker
+
+# 需要从外部访问管理接口/WebUI 时, 必须同时绑定外网卡并配置管理令牌:
+docker run -d -p 11883:11883 -p 1883:1883 \
+  -e MANAGE_ADDR=0.0.0.0 -e MANAGE_TOKEN=change-me \
+  fasteredge/mqtt-broker
 ```
 
 **Docker 环境变量：**
@@ -53,20 +58,27 @@ docker run -d -p 11883:11883 -p 1883:1883 fasteredge/mqtt-broker
 | 环境变量 | 默认值 | 说明 |
 |----------|--------|------|
 | `MANAGE_PORT` | `11883` | 管理接口 / WebUI 端口 |
+| `MANAGE_ADDR` | `127.0.0.1` | 管理接口监听地址。**默认仅本机可访问**；设为外部地址（如 `0.0.0.0`）时必须同时设置 `MANAGE_TOKEN`，否则拒绝启动（fail-closed 安全守卫，防止管理接口被局域网任意主机远程启停 Broker 或读取日志） |
+| `MANAGE_TOKEN` | *(空)* | 管理接口访问令牌。配置后 `/startup`、`/heartbeat`、`/shutdown` 均需携带令牌（`Authorization: Bearer <token>`、`X-MqttBroker-Token: <token>` 或 `token=<token>` 查询参数，常数时间比较） |
 | `MQTT_PORT` | `1883` | 未指定 `port` 参数时 MQTT 监听的默认端口 |
 | `MQTT_AUTOSTART` | `1` | 容器启动时自动监听 MQTT 端口（`1`/`true` 开启，`0` 关闭改为经 WebUI 或 `/startup` 手动启停） |
 
 > 容器默认自动启动 MQTT 监听，Docker HEALTHCHECK（`/health`）随即通过；
 > 若需完全手动控制 Broker 生命周期，运行容器时设置 `-e MQTT_AUTOSTART=0`。
 > 在容器内访问 `http://127.0.0.1:11883/health` 可用于健康检查（Broker 运行中返回 200）。
+> `/health` 始终无需令牌（供 Docker HEALTHCHECK 使用）；其余管理端点配置 `MANAGE_TOKEN` 后均需鉴权。
+> 安全说明: 管理接口含远程启停与日志读取能力, 切勿在未配置 `MANAGE_TOKEN` 的情况下将其暴露到不受信网络。
 
 ### 四、REST API
 
 | 接口 | 方法 | 说明 |
 |------|------|------|
-| `/startup?port=1883` | GET | 启动 MQTT Broker，监听指定端口（缺省 `1883`）。重复启动返回 `already running`。 |
+| `/startup?port=1883` | GET | 启动 MQTT Broker，监听指定端口（缺省 `1883`）。重复启动返回 `already running`。端口仅接受 1-65535 纯数字。 |
 | `/heartbeat` | GET | 返回 JSON，包含版本、运行状态、日志缓存、时间戳与 Broker 端口。日志在每次读取后被清空。 |
 | `/shutdown` | GET | 优雅关闭正在运行的 Broker。 |
+
+> **鉴权**：配置 `MANAGE_TOKEN` 后，上述三个接口均需携带令牌；否则返回 `401`。
+> 令牌来源优先级：`Authorization: Bearer <token>` > `X-MqttBroker-Token: <token>` > `token=<token>` 查询参数。
 
 **`/heartbeat` 返回示例：**
 

@@ -46,6 +46,12 @@ docker build -t fasteredge/mqtt-broker .
 
 # Start the container, mapping the management port (11883) and the MQTT port (1883)
 docker run -d -p 11883:11883 -p 1883:1883 fasteredge/mqtt-broker
+
+# To reach the management API/WebUI from outside, bind an external interface
+# AND configure a management token (fail-closed):
+docker run -d -p 11883:11883 -p 1883:1883 \
+  -e MANAGE_ADDR=0.0.0.0 -e MANAGE_TOKEN=change-me \
+  fasteredge/mqtt-broker
 ```
 
 **Docker environment variables:**
@@ -53,17 +59,24 @@ docker run -d -p 11883:11883 -p 1883:1883 fasteredge/mqtt-broker
 | Environment variable | Default | Description |
 |----------------------|---------|-------------|
 | `MANAGE_PORT` | `11883` | Management API / WebUI port |
+| `MANAGE_ADDR` | `127.0.0.1` | Management listen address. **Loopback by default**; setting an external address (e.g. `0.0.0.0`) WITHOUT `MANAGE_TOKEN` refuses startup (fail-closed guard, matching the DontCrack4 family convention) |
+| `MANAGE_TOKEN` | *(empty)* | Management access token. When set, `/startup`, `/heartbeat` and `/shutdown` require it (`Authorization: Bearer <token>`, `X-MqttBroker-Token: <token>` or `token=<token>` query param; constant-time comparison) |
 | `MQTT_PORT` | `1883` | Default MQTT listening port when the `port` parameter is not specified |
 
 > Inside the container, `http://127.0.0.1:11883/health` can be used for health checks (returns 200 while the Broker is running).
+> `/health` never requires a token (used by Docker HEALTHCHECK); all other management endpoints require it once `MANAGE_TOKEN` is set.
+> Security note: the management API can remotely start/stop the Broker and read logs — never expose it to untrusted networks without `MANAGE_TOKEN`.
 
 ### 4. REST API
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/startup?port=1883` | GET | Starts the MQTT Broker listening on the specified port (default `1883`). Repeated startup returns `already running`. |
+| `/startup?port=1883` | GET | Starts the MQTT Broker listening on the specified port (default `1883`). Repeated startup returns `already running`. Port accepts digits 1-65535 only. |
 | `/heartbeat` | GET | Returns JSON with version, running state, log cache, timestamp and the Broker port. Logs are cleared after each read. |
 | `/shutdown` | GET | Gracefully shuts down the running Broker. |
+
+> **Auth**: when `MANAGE_TOKEN` is set, the three endpoints above return `401` unless the token is supplied.
+> Token source priority: `Authorization: Bearer <token>` > `X-MqttBroker-Token: <token>` > `token=<token>` query parameter.
 
 **Example `/heartbeat` response:**
 
