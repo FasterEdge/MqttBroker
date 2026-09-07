@@ -23,7 +23,7 @@ COPY ui/ ./ui/
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/simple-mqtt-broker .
 
 # ===== 运行阶段 =====
-FROM alpine:3.20
+FROM alpine:3.24
 
 RUN apk add --no-cache ca-certificates tzdata && \
     adduser -D -H -u 1000 mqtt
