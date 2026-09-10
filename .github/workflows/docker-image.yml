@@ -29,7 +29,7 @@ jobs:
     - name: '导出并上传镜像工件'
       run: |
         docker save mqttbroker | gzip > mqttbroker-image.tar.gz
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         # 不能用 github.ref_name: Dependabot PR 分支名含 '/' 会使 artifact name 非法导致上传失败
         name: 'mqttbroker-docker-image-${{ github.run_id }}'
