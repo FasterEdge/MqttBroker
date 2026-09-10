@@ -15,11 +15,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: 'Go 鍗曞厓娴嬭瘯'
+    - name: 'Go 单元测试'
       uses: actions/setup-go@v5
       with:
         go-version: '1.25'
-    - name: '杩愯娴嬭瘯'
+    - name: '运行测试'
       run: go test ./...
     - name: '静态检查 go vet'
       run: go vet ./...
@@ -31,7 +31,8 @@ jobs:
         docker save mqttbroker | gzip > mqttbroker-image.tar.gz
     - uses: actions/upload-artifact@v4
       with:
-        name: 'mqttbroker-docker-image-${{ github.ref_name }}'
+        # 不能用 github.ref_name: Dependabot PR 分支名含 '/' 会使 artifact name 非法导致上传失败
+        name: 'mqttbroker-docker-image-${{ github.run_id }}'
         path: 'mqttbroker-image.tar.gz'
         if-no-files-found: 'warn'
         retention-days: 14
