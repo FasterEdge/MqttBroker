@@ -25,7 +25,8 @@ jobs:
       run: go vet ./...
     - name: '构建 Docker 镜像'
       run: |
-        docker build -t mqttbroker .
+        # runner 在海外: 用官方代理避免 goproxy.cn 超时(本地默认 goproxy.cn 不变)
+        docker build --build-arg GOPROXY=https://proxy.golang.org,direct -t mqttbroker .
     - name: '导出并上传镜像工件'
       run: |
         docker save mqttbroker | gzip > mqttbroker-image.tar.gz
