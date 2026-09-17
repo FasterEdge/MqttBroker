@@ -10,7 +10,7 @@
   - **REST API**: `/startup`, `/heartbeat`, `/shutdown`.
   - **Web management panel**: start / stop the Broker in the browser and view runtime status and logs in real time.
 - The MQTT communication port defaults to `1883`, and can be specified dynamically via `/startup?port=...`.
-- All underlying capabilities come from `MqttBrokerCore`: supports **MQTT 3.1.1 / 5.0**, **QoS 0/1/2**, will messages, retained messages, and topic wildcards (`+`, `#`).
+- All underlying capabilities come from `MqttBrokerCore`: supports **MQTT 3.1.1**, **QoS 0/1/2**, will messages, retained messages, and topic wildcards (`+`, `#`).
 - All static assets are embedded into the binary via `go:embed`, so a single file can be deployed without any additional static directory.
 
 ### 2. Key Features
