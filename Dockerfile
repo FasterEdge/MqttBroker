@@ -1,5 +1,5 @@
 # ===== 构建阶段 =====
-FROM golang:1.25-alpine AS builder
+FROM golang:1.27-alpine AS builder
 
 # go mod download 拉取未缓存模块时需要 git (如私有依赖源码拉取)
 RUN apk add --no-cache git
