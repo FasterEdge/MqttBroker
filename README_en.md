@@ -82,7 +82,7 @@ docker run -d -p 11883:11883 -p 1883:1883 \
 
 ```json
 {
-  "Version": "1.0.20260902",
+  "Version": "1.0.20260922",
   "State": "running",
   "Timestamp": "2026-08-28 13:20:00",
   "Logs": [
