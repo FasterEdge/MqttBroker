@@ -1,13 +1,15 @@
 # ===== 构建阶段 =====
-FROM golang:1.25-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 # go mod download 拉取未缓存模块时需要 git (如私有依赖源码拉取)
 RUN apk add --no-cache git
 
 WORKDIR /src
 
-# 使用国内 Go 模块代理 (proxy.golang.org 在此网络环境不可达)
-ENV GOPROXY=https://goproxy.cn,direct \
+# 使用国内 Go 模块代理 (proxy.golang.org 在此网络环境不可达);
+# CI(GitHub runner, 海外)可用 --build-arg GOPROXY=https://proxy.golang.org,direct 覆盖
+ARG GOPROXY=https://goproxy.cn,direct
+ENV GOPROXY=${GOPROXY} \
     GOSUMDB=sum.golang.google.cn
 
 # 先复制依赖清单以利用 Docker 层缓存
