@@ -7,8 +7,10 @@ on:
       - main
     tags:
       - 'v*'          # 打 v0.1.0 等标签时自动构建并产出镜像
+  release:
+    types: [published, released]
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   docker-build:
@@ -18,7 +20,7 @@ jobs:
     - name: 'Go 单元测试'
       uses: actions/setup-go@v5
       with:
-        go-version: '1.25'
+        go-version: '1.26'
     - name: '运行测试'
       run: go test ./...
     - name: '静态检查 go vet'
@@ -37,3 +39,10 @@ jobs:
         path: 'mqttbroker-image.tar.gz'
         if-no-files-found: 'warn'
         retention-days: 14
+    - name: '上传镜像包到 Release'
+      if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.event.release.tag_name || github.ref_name }}
+        files: 'mqttbroker-image.tar.gz'
+        fail_on_unmatched_files: false
